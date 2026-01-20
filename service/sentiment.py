@@ -15,7 +15,7 @@ def analyze_sentiment(text: str) -> dict:
     """
     global _PIPELINE
     if _PIPELINE is None:
-        model_name = "mdhugol/indonesia-bert-sentiment-classification"
+        model_name = "masnasri-a/indobert-sentiment-analysis"
         _PIPELINE = pipeline("sentiment-analysis", model=model_name, tokenizer=model_name)
     
     result = _PIPELINE(text)

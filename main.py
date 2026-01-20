@@ -75,6 +75,9 @@ async def analyze_all(request: TextRequest):
     """Analisis lengkap: emotion, sentiment, dan NER."""
     try:
         start_time = time()
+        # get only 512 dimensions for BERT-based models
+        request.text = request.text[:512]
+
         emotion = predict_emotion(request.text, top_k=2)
         sentiment = analyze_sentiment(request.text)
         entities = extract_entities(request.text, min_score=0.8)
