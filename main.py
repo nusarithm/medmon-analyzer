@@ -76,7 +76,8 @@ async def analyze_all(request: TextRequest):
     try:
         start_time = time()
         # get only 512 dimensions for BERT-based models (latest)
-        request.text = request.text[512:]
+        # ambil 512 karakter terakhir (jika teks lebih pendek, ambil seluruhnya)
+        request.text = request.text[-512:]
 
         emotion = predict_emotion(request.text, top_k=1)[0]
         sentiment = analyze_sentiment(request.text)
