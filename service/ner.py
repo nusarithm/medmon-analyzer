@@ -25,4 +25,14 @@ def extract_entities(text: str, min_score: float = 0.8) -> List[dict]:
         )
     
     entities = _PIPELINE(text)
-    return [e for e in entities if e['score'] >= min_score]
+    # Convert numpy types to Python native types for JSON serialization
+    return [
+        {
+            'entity_group': e['entity_group'],
+            'word': e['word'],
+            'score': float(e['score']),
+            'start': int(e['start']),
+            'end': int(e['end'])
+        }
+        for e in entities if e['score'] >= min_score
+    ]

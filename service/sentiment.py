@@ -19,4 +19,6 @@ def analyze_sentiment(text: str) -> dict:
         _PIPELINE = pipeline("sentiment-analysis", model=model_name, tokenizer=model_name)
     
     result = _PIPELINE(text)
-    return result[0]
+    # Convert numpy types to Python native types for JSON serialization
+    item = result[0]
+    return {'label': item['label'], 'score': float(item['score'])}

@@ -26,4 +26,8 @@ def predict_emotion(text: str, top_k: int = 1) -> List[dict]:
     
     result = _PIPELINE(text)
     sorted_result = sorted(result[0], key=lambda x: x['score'], reverse=True)
-    return sorted_result[:top_k]
+    # Convert numpy types to Python native types for JSON serialization
+    return [
+        {'label': item['label'], 'score': float(item['score'])}
+        for item in sorted_result[:top_k]
+    ]
