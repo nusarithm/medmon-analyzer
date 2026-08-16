@@ -1,0 +1,26 @@
+# Install on the homelab box:
+#   sudo cp annotator.service /etc/systemd/system/
+#   sudo systemctl enable --now annotator
+#   journalctl -u annotator -f
+[Unit]
+Description=Indonesian news annotation pipeline
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=nasri
+WorkingDirectory=/home/nasri/annotator
+EnvironmentFile=/home/nasri/annotator/.env
+ExecStart=/home/nasri/annotator-venv/bin/python -u main.py
+# SIGTERM lets the current batch finish writing before the process exits.
+KillSignal=SIGTERM
+TimeoutStopSec=120
+Restart=always
+RestartSec=30
+# The box has 7.8 GB and no swap; the three models peak at ~1.5 GB resident.
+# The cap turns a runaway into a restart instead of an OOM that takes sshd out.
+MemoryMax=3G
+Nice=10
+
+[Install]
+WantedBy=multi-user.target

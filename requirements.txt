@@ -1,6 +1,11 @@
+# Install CPU-only torch. Without this index, pip pulls the CUDA build plus
+# the nvidia-* packages: ~5 GB for a GPU the target server does not have.
+#   pip install -r requirements.txt
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+torch>=2.0.0
 transformers>=4.30.0
-torch>=1.13.0
 sentencepiece
-fastapi>=0.104.0
-uvicorn[standard]>=0.24.0
-pydantic>=2.0.0
+# Pinned to match media-monitoring-svc; the 8.x client rejects a 7.x server.
+elasticsearch==7.17.9
+python-dotenv>=1.0.0

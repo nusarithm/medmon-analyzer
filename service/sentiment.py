@@ -1,24 +1,21 @@
-"""Sentiment analysis using IndoBERT model."""
-from transformers import pipeline
+"""Sentiment analysis for Indonesian text."""
+import os
+from typing import List, Union
 
-_PIPELINE = None
+from service.loader import run
+
+MODEL = os.getenv("SENTIMENT_MODEL", "masnasri-a/indobert-sentiment-analysis")
 
 
-def analyze_sentiment(text: str) -> dict:
-    """Analyze sentiment of Indonesian text.
-    
-    Args:
-        text: Input text to analyze.
-    
-    Returns:
-        Dictionary with label and score.
-    """
-    global _PIPELINE
-    if _PIPELINE is None:
-        model_name = "masnasri-a/indobert-sentiment-analysis"
-        _PIPELINE = pipeline("sentiment-analysis", model=model_name, tokenizer=model_name)
-    
-    result = _PIPELINE(text)
-    # Convert numpy types to Python native types for JSON serialization
-    item = result[0]
-    return {'label': item['label'], 'score': float(item['score'])}
+def analyze_sentiment(text: Union[str, List[str]]):
+    """Analyze sentiment. Accepts one string or a list (batched)."""
+    results = run("sentiment-analysis", MODEL, text)
+
+    if isinstance(text, str):
+        item = results[0] if isinstance(results, list) else results
+        return {"label": item["label"], "score": float(item["score"])}
+
+    return [
+        {"label": r["label"], "score": float(r["score"])}
+        for r in (results if isinstance(results[0], dict) else [x[0] for x in results])
+    ]
