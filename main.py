@@ -153,7 +153,11 @@ def write_back(hits, annotations):
         for h in hits
         if h["_id"] in annotations
     ]
-    ok, errors = helpers.bulk(es, actions, raise_on_error=False, refresh=False)
+    # wait_for, not False: the ids leave `_inflight` as soon as this returns,
+    # and until Elasticsearch refreshes (up to 1s) the documents still look
+    # un-annotated. The producer fetches inside that window and hands the same
+    # batch out again - measured at exactly 2x the work for 1x the progress.
+    ok, errors = helpers.bulk(es, actions, raise_on_error=False, refresh="wait_for")
     if errors:
         log(f"{len(errors)} write(s) failed, first: {str(errors[0])[:200]}")
     return ok
