@@ -1,0 +1,27 @@
+# Third annotator instance, for the X (Twitter) scraper's index.
+#   sudo cp annotator-x.service /etc/systemd/system/
+#   sudo systemctl enable --now annotator-x
+#
+# Its own env file, not Environment= overrides on top of the shared one:
+# EnvironmentFile= wins over Environment= regardless of the order they appear,
+# so the override silently did nothing and this instance annotated the news
+# index with the wrong text field.
+[Unit]
+Description=Annotation pipeline for X posts
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=nasri
+WorkingDirectory=/home/nasri/annotator
+EnvironmentFile=/home/nasri/annotator/.env.x
+ExecStart=/home/nasri/annotator-venv/bin/python -u main.py
+KillSignal=SIGTERM
+TimeoutStopSec=120
+Restart=always
+RestartSec=30
+MemoryMax=3G
+Nice=15
+
+[Install]
+WantedBy=multi-user.target
