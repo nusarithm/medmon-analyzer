@@ -41,6 +41,10 @@ NER_MIN_SCORE = float(os.getenv("NER_MIN_SCORE", "0.8"))
 # The models cut at 512 *tokens* (~2000 chars of Indonesian) anyway, and the
 # lede is at the front - past this the tokenizer just burns CPU for nothing.
 MAX_CHARS = int(os.getenv("MAX_CHARS", "2500"))
+# Which fields hold the text to annotate, in order. News articles carry
+# title+body; a Threads post carries a single `text`. Everything else about
+# the pipeline is identical, so this is a setting rather than a second script.
+TEXT_FIELDS = [f.strip() for f in os.getenv("TEXT_FIELDS", "title,body").split(",") if f.strip()]
 
 es = Elasticsearch(
     [os.getenv("ELASTICSEARCH_HOST", "http://localhost:9200")],
@@ -76,16 +80,15 @@ def build_query(skip_ids) -> dict:
     return {
         "query": {"bool": {"must_not": must_not}},
         "sort": [{SORT_FIELD: {"order": "desc", "unmapped_type": "date"}}],
-        "_source": ["title", "body"],
+        "_source": TEXT_FIELDS,
         "size": BATCH,
     }
 
 
 def build_text(source: dict) -> str:
-    """Title plus body, which is what the models should see."""
-    title = (source.get("title") or "").strip()
-    body = (source.get("body") or "").strip()
-    return f"{title}\n{body}".strip()[:MAX_CHARS]
+    """Join the configured text fields, which is what the models should see."""
+    parts = [(source.get(f) or "").strip() for f in TEXT_FIELDS]
+    return "\n".join(p for p in parts if p).strip()[:MAX_CHARS]
 
 
 def annotate_texts(texts):
@@ -123,6 +126,16 @@ def annotate_batch(hits):
             todo.append((h["_id"], text))
         else:
             out[h["_id"]] = {"error": "empty document", "annotated_at": now}
+
+    # Every document empty is a configuration error, not eight empty articles:
+    # it means TEXT_FIELDS names fields this index does not have. Writing error
+    # markers here would retire those documents permanently, so refuse instead.
+    # This is not hypothetical - it silently poisoned 776 news documents once.
+    if not todo and len(hits) >= 4:
+        raise SystemExit(
+            f"refusing to annotate: none of {TEXT_FIELDS} exist on any of "
+            f"{len(hits)} documents in {INDEX}. Check TEXT_FIELDS."
+        )
 
     if not todo:
         return out
@@ -199,7 +212,8 @@ def main():
     signal.signal(signal.SIGINT, lambda *_: stop.set())
     signal.signal(signal.SIGTERM, lambda *_: stop.set())
 
-    log(f"index={INDEX} batch={BATCH} mode={'once' if once else 'daemon'}")
+    log(f"index={INDEX} fields={','.join(TEXT_FIELDS)} batch={BATCH} "
+        f"mode={'once' if once else 'daemon'}")
     threading.Thread(target=producer, args=(once,), daemon=True).start()
 
     total = 0

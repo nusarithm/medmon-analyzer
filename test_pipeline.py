@@ -24,6 +24,18 @@ def test_text_building():
     assert len(main.build_text({"body": "x" * 99999})) == main.MAX_CHARS
 
 
+def test_text_fields_are_configurable():
+    """A Threads post keeps its text in `text`, not title+body."""
+    original = main.TEXT_FIELDS
+    main.TEXT_FIELDS = ["text"]
+    try:
+        assert main.build_text({"text": "Isi post", "title": "diabaikan"}) == "Isi post"
+        assert main.build_text({"title": "hanya judul"}) == ""
+        assert main.build_query(set())["_source"] == ["text"]
+    finally:
+        main.TEXT_FIELDS = original
+
+
 def test_empty_docs_get_error_marker_not_a_model_call():
     hits = [{"_id": "1", "_source": {"title": "", "body": ""}}]
     out = main.annotate_batch(hits)
@@ -54,6 +66,28 @@ def test_bad_doc_does_not_poison_the_batch(monkeypatch=None):
     assert "error" not in out["good"], "healthy doc must still be annotated"
     assert out["bad"]["error"] == "doc boom"
     assert calls[0] == ["ok", "bad"]  # batched first, then retried alone
+
+
+def test_wrong_text_fields_refuses_instead_of_marking_everything_bad():
+    """Wrong TEXT_FIELDS must stop the run, not retire the whole index."""
+    original = main.TEXT_FIELDS
+    main.TEXT_FIELDS = ["nonexistent_field"]
+    hits = [{"_id": str(i), "_source": {"title": "ada isinya", "body": "juga"}} for i in range(8)]
+    try:
+        try:
+            main.annotate_batch(hits)
+        except SystemExit as e:
+            assert "TEXT_FIELDS" in str(e), e
+        else:
+            raise AssertionError("should have refused")
+    finally:
+        main.TEXT_FIELDS = original
+
+
+def test_single_genuinely_empty_document_still_gets_a_marker():
+    """One empty article is normal and must still be retired."""
+    out = main.annotate_batch([{"_id": "1", "_source": {"title": "", "body": ""}}])
+    assert "error" in out["1"]
 
 
 if __name__ == "__main__":
